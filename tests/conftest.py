@@ -58,3 +58,21 @@ def cur(test_db):
     with conn.cursor() as c:
         yield c
     conn.close()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def db_connection(test_db):
+    """Модуль db приложения подключён к тестовой базе."""
+    import db
+    db.connect(TEST_PARAMS)
+    yield
+    db.conn.close()
+
+
+@pytest.fixture(scope="session")
+def qapp():
+    """Единственный QApplication для тестов с окнами (без вывода на экран)."""
+    os.environ["QT_QPA_PLATFORM"] = "offscreen"
+    from PyQt5.QtWidgets import QApplication
+    app = QApplication.instance() or QApplication([])
+    yield app
