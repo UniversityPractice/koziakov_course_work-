@@ -6,6 +6,14 @@ from PyQt5.QtWidgets import QAbstractItemView, QMessageBox, QTableWidget, QTable
 
 import db
 
+# Допустимые значения из ограничений CHECK схемы БД
+PLANT_TYPES = ["срезанный", "горшечный"]
+POSITIONS = ["флорист", "курьер"]
+COMPLEXITIES = ["простой", "средний", "сложный"]
+PAYMENT_METHODS = ["наличные", "карта", "перевод"]
+WRITEOFF_REASONS = ["увядание", "брак", "повреждение"]
+REQUEST_STATUSES = ["новая", "выполнена", "отменена"]
+
 
 def fmt(value):
     """Значение из БД в текст для таблицы."""

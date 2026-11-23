@@ -5,6 +5,7 @@ import psycopg2
 from PyQt5.QtWidgets import QApplication, QMainWindow, QMessageBox, QTabWidget, QWidget
 
 import db
+from ui.directories import DirectoryTab, directory
 
 
 class StubTab(QWidget):
@@ -28,9 +29,18 @@ class MainWindow(QMainWindow):
         self.tabs.currentWidget().refresh()
 
     def build_tabs(self):
-        titles = ["Растения", "Категории", "Поставщики", "Сотрудники", "Клиенты",
-                  "Книга рецептов", "Заказы", "Списания", "Заявки на закупку", "Отчёты"]
-        return [(title, StubTab()) for title in titles]
+        return [
+            ("Растения", DirectoryTab(directory("Растения"))),
+            ("Категории", DirectoryTab(directory("Категории"))),
+            ("Поставщики", DirectoryTab(directory("Поставщики"))),
+            ("Сотрудники", DirectoryTab(directory("Сотрудники"))),
+            ("Клиенты", DirectoryTab(directory("Клиенты"))),
+            ("Книга рецептов", StubTab()),
+            ("Заказы", StubTab()),
+            ("Списания", DirectoryTab(directory("Списания"))),
+            ("Заявки на закупку", StubTab()),
+            ("Отчёты", StubTab()),
+        ]
 
 
 def main():
