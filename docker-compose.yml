@@ -1,18 +1,12 @@
-# «Флористический центр»: PostgreSQL 16 и настольное приложение (PyQt5).
+# «Флористический центр»: PostgreSQL 16 и локальный сайт (Flask).
 #
-#   docker compose up -d --build   — поднять базу и открыть окно приложения
-#   docker compose up -d db        — только база (приложение запускается на хосте: python app/main.py)
-#   docker compose run --rm app    — открыть приложение ещё раз после того, как окно закрыли
+#   docker compose up -d --build   — поднять базу и сайт: http://localhost:8000
+#   docker compose up -d db        — только база (сайт запускается на хосте: python app/main.py)
 #   docker compose down -v         — остановить и удалить данные (следующий up создаст базу заново)
 #
 # База: параметры совпадают с app/config.ini (localhost:5433, florist, postgres/flowers).
 # При первом запуске (пустой том) создаётся схема и загружаются тестовые
 # и дополнительные данные.
-#
-# Приложение: окно выводится на X-сервер хоста. По умолчанию — WSLg
-# (Windows 10/11 + Docker Desktop на WSL2, ничего ставить не нужно).
-# На Linux:  X11_UNIX=/tmp/.X11-unix docker compose up -d --build
-#            (и разрешить доступ: xhost +local:docker)
 
 services:
   db:
@@ -49,11 +43,9 @@ services:
       # переопределяют app/config.ini: внутри сети compose база — это сервис db
       DB_HOST: db
       DB_PORT: "5432"
-      DISPLAY: "${DISPLAY_NUM:-:0}"
-    volumes:
-      - "${X11_UNIX:-/run/desktop/mnt/host/wslg/.X11-unix}:/tmp/.X11-unix"
-    # окно закрыли — контейнер завершился; снова открыть: docker compose run --rm app
-    restart: "no"
+    ports:
+      - "127.0.0.1:${APP_PORT:-8000}:8000"
+    restart: unless-stopped
 
 volumes:
   florist-data:

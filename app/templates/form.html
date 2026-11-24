@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}{{ config.title }}{% endblock %}
+{% block content %}
+<h1>{{ config.title }}: {{ "изменение" if record_id else "добавление" }}</h1>
+{% if error %}<div class="flash error">{{ error }}</div>{% endif %}
+<form method="post" class="card">
+  {% for f in fields %}
+    <label>
+      <span>{{ f.label }}{% if f.required %} *{% endif %}</span>
+      {% if f.options is not none %}
+        <select name="{{ f.name }}" {% if f.required %}required{% endif %}>
+          {% if not f.required or not f.value %}<option value="">—</option>{% endif %}
+          {% for value, text in f.options %}
+            <option value="{{ value }}" {% if value | string == f.value %}selected{% endif %}>{{ text }}</option>
+          {% endfor %}
+        </select>
+      {% elif f.kind == "int" %}
+        <input type="number" step="1" name="{{ f.name }}" value="{{ f.value }}" {% if f.required %}required{% endif %}>
+      {% elif f.kind == "money" %}
+        <input type="number" step="0.01" min="0" name="{{ f.name }}" value="{{ f.value }}" {% if f.required %}required{% endif %}>
+      {% else %}
+        <input type="text" name="{{ f.name }}" value="{{ f.value }}" {% if f.required %}required{% endif %}>
+      {% endif %}
+    </label>
+  {% endfor %}
+  <div class="buttons">
+    <button class="button">Сохранить</button>
+    <a href="{{ url_for('directory_list', slug=config.slug) }}">Отмена</a>
+  </div>
+</form>
+{% endblock %}

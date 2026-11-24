@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Отчёт {{ n }}{% endblock %}
+{% block content %}
+<h1>{{ n }}. {{ title }}</h1>
+{% if kind %}
+<form method="get" class="period">
+  <label>с <input type="date" name="from" value="{{ params['с'] or '' }}"></label>
+  <label>по <input type="date" name="to" value="{{ params['по'] or '' }}"></label>
+  <button class="button">Выполнить</button>
+  {% if kind == "period" %}<span class="hint">без дат — за всё время</span>{% endif %}
+</form>
+{% endif %}
+{% if xml %}
+  <p><a class="button" href="{{ url_for('report_xml') }}">Скачать price.xml</a></p>
+  <pre>{{ xml }}</pre>
+{% else %}
+<table>
+  <thead><tr>{% for c in columns %}<th>{{ c }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for row in rows %}
+    <tr>{% for v in row %}<td>{{ v | fmt }}</td>{% endfor %}</tr>
+  {% else %}
+    <tr><td colspan="{{ columns | length }}" class="empty">Нет данных</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

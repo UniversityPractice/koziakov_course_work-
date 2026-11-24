@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Заявки на закупку{% endblock %}
+{% block content %}
+<div class="head">
+  <h1>Заявки на закупку</h1>
+  <form method="post" action="{{ url_for('requests_generate') }}">
+    <button class="button">Сформировать заявки</button>
+  </form>
+</div>
+<p class="hint">Заявки создаёт база, когда остаток опускается ниже точки заказа. Получение товара пополняет склад.</p>
+<div class="tabs">
+  {% for s in statuses + ["все"] %}
+    <a href="{{ url_for('requests_list', status=s) }}" {% if s == status %}class="active"{% endif %}>{{ s }}</a>
+  {% endfor %}
+</div>
+<table>
+  <thead><tr>{% for c in columns[1:] %}<th>{{ c }}</th>{% endfor %}<th></th></tr></thead>
+  <tbody>
+  {% for row in rows %}
+    <tr>
+      {% for v in row[1:] %}<td>{{ v | fmt }}</td>{% endfor %}
+      <td class="actions">
+        {% if row[-1] == "новая" %}
+          <form method="post" action="{{ url_for('requests_set_status', request_id=row[0], action='received', status=status) }}">
+            <button class="link">Товар получен</button>
+          </form>
+          <form method="post" action="{{ url_for('requests_set_status', request_id=row[0], action='cancel', status=status) }}"
+                onsubmit="return confirm(&quot;Отменить заявку?&quot;)">
+            <button class="link danger">Отменить</button>
+          </form>
+        {% endif %}
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="{{ columns | length }}" class="empty">Заявок нет</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

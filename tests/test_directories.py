@@ -6,7 +6,7 @@ import pytest
 
 import db
 import sql
-from ui.directories import DIRECTORIES, RecordDialog, directory
+from directories import DIRECTORIES, directory, parse_form
 
 
 def lookup_id(lookup_sql, label_start):
@@ -100,7 +100,7 @@ def test_duplicate_and_check_errors():
 
 def test_plants_list_flags_low_stock():
     rows = db.fetch(sql.PLANT_LIST)[1]
-    assert sum(1 for r in rows if r[directory("Растения")["highlight_col"]]) >= 3
+    assert sum(1 for r in rows if r[directory("plants")["highlight_col"]]) >= 3
 
 
 def test_lookups_filter_roles():
@@ -110,19 +110,27 @@ def test_lookups_filter_roles():
     assert "Иванова Анна Сергеевна" not in couriers and "Петров Игорь Олегович" in couriers
 
 
-def test_record_dialog_empty_text_is_none(qapp):
-    dlg = RecordDialog(None, directory("Клиенты"))
-    dlg.widgets[0].setText("  Ольга ")
-    assert dlg.values() == ("Ольга", None, None)
+def test_parse_form_empty_text_is_none():
+    values, error = parse_form(directory("clients"), {"f0": "  Ольга ", "f1": "", "f2": " "})
+    assert error is None and values == ("Ольга", None, None)
 
 
-def test_record_dialog_edit_fills_and_saves(qapp):
-    cfg = directory("Растения")
-    plant_id = lookup_id(sql.PLANTS_LOOKUP, "Роза красная")
-    values = db.fetch(cfg["get"], (plant_id,))[1][0]
-    dlg = RecordDialog(None, cfg, values, plant_id)
-    assert normalize(dlg.values()) == normalize(values)
-    dlg.widgets[6].setValue(55)          # мин. остаток
-    dlg.save()
-    assert db.fetch_value("select мин_остаток from растения where id = %s", (plant_id,)) == 55
-    db.execute(cfg["update"], values + (plant_id,))
+def test_parse_form_types():
+    form = {"f0": "Роза", "f1": "срезанный", "f2": "3", "f3": "4", "f4": "120,5", "f5": "10", "f6": "2"}
+    values, error = parse_form(directory("plants"), form)
+    assert error is None
+    assert values == ("Роза", "срезанный", 3, 4, Decimal("120.50"), 10, 2)
+
+
+@pytest.mark.parametrize("form, message", [
+    ({"f0": "", "f1": "1.5"}, "Заполните поле «Название»"),
+    ({"f0": "X", "f1": "abc"}, "неверное число"),
+])
+def test_parse_form_errors(form, message):
+    values, error = parse_form(directory("categories"), form)
+    assert values is None and message in error
+
+
+def test_parse_form_int_range():
+    values, error = parse_form(directory("suppliers"), {"f0": "X", "f2": "0"})
+    assert values is None and "от 1 до 365" in error

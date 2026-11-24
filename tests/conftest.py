@@ -4,7 +4,6 @@
 чтобы тесты не трогали рабочую базу florist.
 """
 import configparser
-import os
 import re
 import sys
 from pathlib import Path
@@ -69,10 +68,9 @@ def db_connection(test_db):
     db.conn.close()
 
 
-@pytest.fixture(scope="session")
-def qapp():
-    """Единственный QApplication для тестов с окнами (без вывода на экран)."""
-    os.environ["QT_QPA_PLATFORM"] = "offscreen"
-    from PyQt5.QtWidgets import QApplication
-    app = QApplication.instance() or QApplication([])
-    yield app
+@pytest.fixture
+def client():
+    """Тестовый клиент сайта (страницы запрашиваются без запуска сервера)."""
+    from main import app
+    app.config["TESTING"] = True
+    return app.test_client()

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{% endblock %} — Флористический центр</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<aside>
+  <a class="logo" href="{{ url_for('index') }}">❀ Флористический центр</a>
+  <nav>
+    <h3>Справочники</h3>
+    {% for d in directories %}
+      <a href="{{ url_for('directory_list', slug=d.slug) }}"
+         {% if request.view_args and request.view_args.get('slug') == d.slug %}class="active"{% endif %}>{{ d.title }}</a>
+    {% endfor %}
+    <h3>Закупки</h3>
+    <a href="{{ url_for('requests_list') }}"
+       {% if request.endpoint == 'requests_list' %}class="active"{% endif %}>Заявки на закупку</a>
+    <h3>Отчёты</h3>
+    {% for n, r in reports.items() %}
+      <a href="{{ url_for('report', n=n) }}"
+         {% if request.view_args and request.view_args.get('n') == n %}class="active"{% endif %}>{{ n }}. {{ r[0] }}</a>
+    {% endfor %}
+  </nav>
+</aside>
+<main>
+  {% for category, text in get_flashed_messages(with_categories=true) %}
+    <div class="flash {{ category }}">{{ text }}</div>
+  {% endfor %}
+  {% block content %}{% endblock %}
+</main>
+</body>
+</html>

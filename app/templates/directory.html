@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}{{ config.title }}{% endblock %}
+{% block content %}
+<div class="head">
+  <h1>{{ config.title }}</h1>
+  <a class="button" href="{{ url_for('directory_form', slug=config.slug) }}">+ Добавить</a>
+</div>
+{% if config.highlight_col %}<p class="hint"><span class="swatch"></span> остаток ниже минимального</p>{% endif %}
+<table>
+  <thead><tr>{% for i in visible %}<th>{{ columns[i] }}</th>{% endfor %}<th></th></tr></thead>
+  <tbody>
+  {% for row in rows %}
+    <tr {% if config.highlight_col and row[config.highlight_col] %}class="low"{% endif %}>
+      {% for i in visible %}<td>{{ row[i] | fmt }}</td>{% endfor %}
+      <td class="actions">
+        <a href="{{ url_for('directory_form', slug=config.slug, record_id=row[0]) }}">Изменить</a>
+        <form method="post" action="{{ url_for('directory_delete', slug=config.slug, record_id=row[0]) }}"
+              onsubmit="return confirm({{ config.delete_question | tojson | forceescape }})">
+          <button class="link danger">Удалить</button>
+        </form>
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="{{ visible | length + 1 }}" class="empty">Записей нет</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
