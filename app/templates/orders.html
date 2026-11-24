@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Заказы{% endblock %}
+{% block content %}
+<h1>Заказы</h1>
+<p class="hint">
+  Растения списываются со склада при оформлении заказа. Когда заказчик принял цветы, отметьте «Вручён».
+  Отменить можно только заказ в статусе «принят» — растения вернутся на склад.
+  Оформление новых заказов — в разработке.
+</p>
+<div class="tabs">
+  {% for f in filters %}
+    <a href="{{ url_for('orders_list', status=f) }}" {% if f == current %}class="active"{% endif %}>{{ f }}</a>
+  {% endfor %}
+</div>
+<table>
+  <thead><tr>{% for c in columns[2:] %}<th>{{ c }}</th>{% endfor %}<th></th></tr></thead>
+  <tbody>
+  {% for row in rows %}
+    {% set status = row[-2] %}
+    <tr>
+      {% for v in row[2:] %}
+        {% if loop.revindex == 2 %}
+          <td><span class="status {{ {'вручён': 'done', 'не вручён': 'bad'}.get(status, 'active') }}">{{ v }}</span></td>
+        {% else %}
+          <td>{{ v | fmt }}</td>
+        {% endif %}
+      {% endfor %}
+      <td class="actions">
+        {% for a in buttons[status] %}
+          {% if a == "cancel" %}
+            <form method="post" action="{{ url_for('orders_action', order_id=row[0], action=a, status=current) }}"
+                  onsubmit="return confirm(&quot;Отменить заказ? Растения вернутся на склад.&quot;)">
+              <button class="link danger">Отменить</button>
+            </form>
+          {% elif a != "delivery" or row[1] %}
+            <form method="post" action="{{ url_for('orders_action', order_id=row[0], action=a, status=current) }}">
+              <button class="link">{{ actions[a][1] }}</button>
+            </form>
+          {% endif %}
+        {% endfor %}
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="{{ columns | length - 1 }}" class="empty">Заказов нет</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -12,7 +12,7 @@ from flask import Flask, Response, abort, flash, redirect, render_template, requ
 
 import db
 import sql
-from directories import DIRECTORIES, REQUEST_STATUSES, directory, parse_form
+from directories import DIRECTORIES, ORDER_STATUSES, REQUEST_STATUSES, directory, parse_form
 
 app = Flask(__name__)
 app.secret_key = "florist-local"  # нужен только для flash-сообщений на локальном сайте
@@ -144,6 +144,51 @@ def directory_delete(slug, record_id):
     except psycopg2.Error as e:
         flash(db.error_text(e), "error")
     return redirect(url_for("directory_list", slug=slug))
+
+
+# --- Заказы -----------------------------------------------------------
+
+# Кнопка на странице → новый статус заказа
+ORDER_ACTIONS = {
+    "delivery": ("в доставке", "Передать курьеру", "Заказ передан курьеру."),
+    "delivered": ("вручён", "Вручён", "Заказ вручён."),
+    "failed": ("не вручён", "Не вручён", "Отмечено: заказ не вручён."),
+}
+# Какие кнопки показывать в каждом статусе (проверяет всё равно триггер в БД)
+ORDER_BUTTONS = {
+    "принят": ["delivery", "delivered", "cancel"],
+    "в доставке": ["delivered", "failed"],
+    "не вручён": ["delivery", "delivered"],
+    "вручён": [],
+}
+ORDER_FILTERS = ["активные"] + ORDER_STATUSES + ["все"]
+
+
+@app.route("/orders")
+def orders_list():
+    current = request.args.get("status", "активные")
+    if current not in ORDER_FILTERS:
+        current = "активные"
+    columns, rows = db.fetch(sql.ORDER_LIST, {"фильтр": current})
+    return render_template("orders.html", columns=columns, rows=rows, current=current,
+                           filters=ORDER_FILTERS, actions=ORDER_ACTIONS, buttons=ORDER_BUTTONS)
+
+
+@app.post("/orders/<int:order_id>/<action>")
+def orders_action(order_id, action):
+    try:
+        if action == "cancel":
+            db.execute(sql.ORDER_DELETE, (order_id,))
+            flash("Заказ отменён, растения вернулись на склад.", "ok")
+        elif action in ORDER_ACTIONS:
+            status, _, done = ORDER_ACTIONS[action]
+            db.execute(sql.ORDER_SET_STATUS, (status, order_id))
+            flash(done, "ok")
+        else:
+            abort(404)
+    except psycopg2.Error as e:
+        flash(db.error_text(e), "error")
+    return redirect(url_for("orders_list", status=request.args.get("status", "активные")))
 
 
 # --- Заявки на закупку -------------------------------------------------

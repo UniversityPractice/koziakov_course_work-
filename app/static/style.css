@@ -51,6 +51,10 @@ input, select { width: 100%; padding: 7px 9px; border: 1px solid var(--line); bo
 .tabs a { padding: 5px 12px; border-radius: 16px; background: var(--panel); border: 1px solid var(--line);
           text-decoration: none; color: var(--text); }
 .tabs a.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.status { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 13px; white-space: nowrap; }
+.status.active { background: #fff3d6; color: #8a5a00; }
+.status.done { background: var(--accent-soft); color: var(--accent); }
+.status.bad { background: var(--low); color: var(--danger); }
 .period { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
 .period input { width: auto; }
 pre { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px;
