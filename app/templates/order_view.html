@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Заказ №{{ order[0] }}{% endblock %}
+{% block content %}
+{% set status = order[10] %}
+<div class="head">
+  <h1>Заказ №{{ order[0] }}
+    <span class="status {{ {'вручён': 'done', 'не вручён': 'bad'}.get(status, 'active') }}">{{ status }}</span></h1>
+  <a href="{{ url_for('orders_list') }}">← К заказам</a>
+</div>
+
+<section class="card wide">
+  <dl class="details">
+    <dt>Оформлен</dt><dd>{{ order[1] | fmt }}</dd>
+    <dt>Клиент</dt><dd>{{ order[2] }}</dd>
+    <dt>Флорист</dt><dd>{{ order[3] }}</dd>
+    <dt>Оплата</dt><dd>{{ order[4] }}</dd>
+    {% if order[5] %}
+      <dt>Курьер</dt><dd>{{ order[5] }}</dd>
+      <dt>Адрес</dt><dd>{{ order[6] }}</dd>
+      <dt>Доставить к</dt><dd>{{ order[7] | fmt or "—" }}</dd>
+      {% if order[8] %}<dt>Получатель</dt><dd>{{ order[8] }} {{ order[9] or "" }}</dd>{% endif %}
+    {% else %}
+      <dt>Получение</dt><dd>самовывоз</dd>
+    {% endif %}
+    {% if order[11] %}<dt>Вручён</dt><dd>{{ order[11] | fmt }}</dd>{% endif %}
+    <dt>Сумма</dt><dd><b>{{ order[12] | fmt }} ₽</b></dd>
+  </dl>
+  <div class="buttons">
+    {% for a in buttons[status] %}
+      {% if a == "cancel" %}
+        <form method="post" action="{{ url_for('orders_action', order_id=order[0], action=a) }}"
+              onsubmit="return confirm(&quot;Отменить заказ? Растения вернутся на склад.&quot;)">
+          <button class="link danger">Отменить заказ</button>
+        </form>
+      {% elif a != "delivery" or order[5] %}
+        <form method="post" action="{{ url_for('orders_action', order_id=order[0], action=a) }}">
+          <button class="button secondary">{{ actions[a][1] }}</button>
+        </form>
+      {% endif %}
+    {% endfor %}
+  </div>
+</section>
+
+{% for b in bouquets %}
+  <section class="card wide">
+    <h2>Букет {{ loop.index }} · {{ b[2] }}</h2>
+    <p class="hint">Сложность: {{ b[3] }} · сборка {{ b[4] }} мин. ·
+      рекомендуемая цена {{ b[5] | fmt }} ₽ · <b>цена продажи {{ b[6] | fmt }} ₽</b></p>
+    <table class="items">
+      <thead><tr>{% for c in item_columns[1:] %}<th>{{ c }}</th>{% endfor %}</tr></thead>
+      <tbody>
+        {% for it in items if it[0] == b[0] %}
+          <tr>{% for v in it[1:] %}<td>{{ v | fmt }}</td>{% endfor %}</tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endfor %}
+
+{% if plants %}
+  <section class="card wide">
+    <h2>Отдельные растения</h2>
+    <table class="items">
+      <thead><tr>{% for c in plant_columns %}<th>{{ c }}</th>{% endfor %}</tr></thead>
+      <tbody>
+        {% for row in plants %}<tr>{% for v in row %}<td>{{ v | fmt }}</td>{% endfor %}</tr>{% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endif %}
+{% endblock %}

@@ -119,7 +119,7 @@ def test_orders_page_filters(client, f):
 def test_orders_page_flow(client):
     order_id = new_order()
     page = text(client.get("/orders"))
-    assert f"<td>{order_id}</td>" in page and "Передать курьеру" in page
+    assert f'href="/orders/{order_id}">{order_id}</a>' in page and "Передать курьеру" in page
 
     page = text(client.post(f"/orders/{order_id}/delivery", follow_redirects=True))
     assert "Заказ передан курьеру" in page

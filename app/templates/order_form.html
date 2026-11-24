@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Оформление заказа{% endblock %}
+
+{% macro plant_rows(prefix, items, plants) %}
+  {# строки состава: выбранные растения и одна пустая для добавления #}
+  {% for plant, qty in items + [(none, none)] %}
+    <tr>
+      <td>
+        <select name="{{ prefix }}plant">
+          <option value="">— растение —</option>
+          {% for pid, label in plants %}
+            <option value="{{ pid }}" {% if pid == plant %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </td>
+      <td class="qty"><input type="number" name="{{ prefix }}qty" min="1" step="1" value="{{ qty or '' }}"
+                             placeholder="шт."></td>
+      {{ caller(plant, qty) if caller else "" }}
+    </tr>
+  {% endfor %}
+{% endmacro %}
+
+{% block content %}
+<div class="head">
+  <h1>Оформление заказа</h1>
+  <a href="{{ url_for('orders_list') }}">← К заказам</a>
+</div>
+{% if error %}<div class="flash error">{{ error }}</div>{% endif %}
+
+{# novalidate: пересчёт и выбор шаблона работают с незаполненной формой, всё проверяет сервер при сохранении #}
+<form method="post" class="order-form" novalidate>
+  {# Enter в любом поле — «Пересчитать», а не первая кнопка формы #}
+  <button name="action" value="recalc" class="default-submit" tabindex="-1" aria-hidden="true">Пересчитать</button>
+  <input type="hidden" name="b_count" value="{{ draft.bouquets | length }}">
+
+  <section class="card wide">
+    <h2>Заказ</h2>
+    <div class="grid">
+      <label><span>Клиент *</span>
+        <select name="client" required>
+          <option value="">— выберите —</option>
+          {% for cid, label in clients %}
+            <option value="{{ cid }}" {% if cid == draft.client %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label><span>Флорист *</span>
+        <select name="florist" required onchange="this.form.requestSubmit(this.form.querySelector('.default-submit'))">
+          <option value="">— выберите —</option>
+          {% for fid, label in florists %}
+            <option value="{{ fid }}" {% if fid == draft.florist %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label><span>Оплата *</span>
+        <select name="payment">
+          {% for p in payments %}<option {% if p == draft.payment %}selected{% endif %}>{{ p }}</option>{% endfor %}
+        </select>
+      </label>
+      <label><span>Курьер</span>
+        <select name="courier">
+          <option value="">— самовывоз —</option>
+          {% for cid, label in couriers %}
+            <option value="{{ cid }}" {% if cid == draft.courier %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+    <h3>Доставка <span class="hint">— заполняется, если выбран курьер</span></h3>
+    <div class="grid">
+      <label><span>Адрес</span><input type="text" name="address" value="{{ draft.address }}"></label>
+      <label><span>Доставить к</span><input type="datetime-local" name="time" value="{{ draft.time }}"></label>
+      <label><span>Получатель (если не сам клиент)</span>
+        <input type="text" name="recipient" value="{{ draft.recipient }}"></label>
+      <label><span>Телефон получателя</span>
+        <input type="text" name="recipient_phone" value="{{ draft.recipient_phone }}"></label>
+    </div>
+  </section>
+
+  {% for b in draft.bouquets %}
+    {% set i = loop.index0 %}
+    <section class="card wide">
+      <div class="head">
+        <h2>Букет {{ loop.index }}</h2>
+        <button name="action" value="remove:{{ i }}" class="link danger">Удалить букет</button>
+      </div>
+      <div class="grid">
+        <label><span>Шаблон из книги рецептов флориста</span>
+          <select name="b{{ i }}_template"
+                  onchange="this.form.requestSubmit(document.getElementById('tpl{{ i }}'))">
+            <option value="">— индивидуальный —</option>
+            {% for tid, name in templates %}
+              <option value="{{ tid }}" {% if tid == b.template %}selected{% endif %}>{{ name }}</option>
+            {% endfor %}
+          </select>
+          <button id="tpl{{ i }}" name="action" value="template:{{ i }}" class="link small">
+            взять состав шаблона</button>
+        </label>
+        <label><span>Сложность *</span>
+          <select name="b{{ i }}_complexity">
+            {% for c in complexities %}<option {% if c == b.complexity %}selected{% endif %}>{{ c }}</option>{% endfor %}
+          </select>
+        </label>
+        <label><span>Время сборки, мин. *</span>
+          <input type="number" name="b{{ i }}_minutes" min="1" step="1" value="{{ b.minutes }}"></label>
+        <label><span>Цена продажи, ₽ *</span>
+          <input type="number" name="b{{ i }}_price" min="0" step="0.01" value="{{ b.price }}">
+          <input type="hidden" name="b{{ i }}_rec" value="{{ b.rec if b.rec is not none else '' }}">
+          <small class="hint">рекомендуемая: <b>{{ b.rec | fmt }} ₽</b></small>
+        </label>
+      </div>
+      <table class="items">
+        <thead><tr><th>Растение (остаток)</th><th class="qty">Кол-во</th></tr></thead>
+        <tbody>{{ plant_rows("b%d_" % i, b["items"], plants) }}</tbody>
+      </table>
+      <p class="hint">Чтобы добавить растение, заполните пустую строку и нажмите «Пересчитать».
+        Чтобы убрать — очистите количество.</p>
+    </section>
+  {% endfor %}
+  <p><button name="action" value="add_bouquet" class="button secondary">+ Добавить букет</button></p>
+
+  <section class="card wide">
+    <h2>Отдельные растения</h2>
+    <table class="items">
+      <thead><tr><th>Растение (остаток)</th><th class="qty">Кол-во</th><th class="qty">Сумма, ₽</th></tr></thead>
+      <tbody>
+        {% call(plant, qty) plant_rows("p_", draft.plants, plants) %}
+          <td class="qty">{{ draft.plant_prices.get(plant) | fmt }}</td>
+        {% endcall %}
+      </tbody>
+    </table>
+  </section>
+
+  <div class="order-total">
+    <span>Итого: <b>{{ draft.total | fmt }} ₽</b></span>
+    <button name="action" value="recalc" class="button secondary">Пересчитать</button>
+    <button name="action" value="save" class="button">Оформить заказ</button>
+  </div>
+</form>
+{% endblock %}

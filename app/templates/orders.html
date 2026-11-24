@@ -1,11 +1,13 @@
 {% extends "base.html" %}
 {% block title %}Заказы{% endblock %}
 {% block content %}
-<h1>Заказы</h1>
+<div class="head">
+  <h1>Заказы</h1>
+  <a class="button" href="{{ url_for('order_new') }}">+ Оформить заказ</a>
+</div>
 <p class="hint">
   Растения списываются со склада при оформлении заказа. Когда заказчик принял цветы, отметьте «Вручён».
   Отменить можно только заказ в статусе «принят» — растения вернутся на склад.
-  Оформление новых заказов — в разработке.
 </p>
 <div class="tabs">
   {% for f in filters %}
@@ -19,7 +21,9 @@
     {% set status = row[-2] %}
     <tr>
       {% for v in row[2:] %}
-        {% if loop.revindex == 2 %}
+        {% if loop.first %}
+          <td><a href="{{ url_for('order_view', order_id=row[0]) }}">{{ v }}</a></td>
+        {% elif loop.revindex == 2 %}
           <td><span class="status {{ {'вручён': 'done', 'не вручён': 'bad'}.get(status, 'active') }}">{{ v }}</span></td>
         {% else %}
           <td>{{ v | fmt }}</td>

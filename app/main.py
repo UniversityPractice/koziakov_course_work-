@@ -11,6 +11,7 @@ import psycopg2
 from flask import Flask, Response, abort, flash, redirect, render_template, request, url_for
 
 import db
+import orders
 import sql
 from directories import DIRECTORIES, ORDER_STATUSES, REQUEST_STATUSES, directory, parse_form
 
@@ -172,6 +173,53 @@ def orders_list():
     columns, rows = db.fetch(sql.ORDER_LIST, {"фильтр": current})
     return render_template("orders.html", columns=columns, rows=rows, current=current,
                            filters=ORDER_FILTERS, actions=ORDER_ACTIONS, buttons=ORDER_BUTTONS)
+
+
+@app.route("/orders/new", methods=["GET", "POST"])
+def order_new():
+    """Оформление заказа: каждая кнопка формы присылает черновик сюда же."""
+    error = None
+    action = request.form.get("action", "recalc")
+    if request.method == "GET":
+        draft = orders.empty_draft()
+        draft["bouquets"].append(orders.empty_bouquet())
+    else:
+        draft = orders.read_draft(request.form)
+        orders.apply_action(draft, action)
+    orders.recalc(draft)
+
+    if request.method == "POST" and action == "save":
+        error = orders.check(draft)
+        if error is None:
+            try:
+                order_id = orders.save(draft)
+            except psycopg2.Error as e:
+                error = db.error_text(e)  # транзакция откатилась, форма остаётся заполненной
+            else:
+                flash(f"Заказ №{order_id} оформлен.", "ok")
+                return redirect(url_for("order_view", order_id=order_id))
+
+    templates = db.fetch(sql.FLORIST_TEMPLATES_LOOKUP, (draft["florist"],))[1] if draft["florist"] else []
+    return render_template("order_form.html", draft=draft, error=error, templates=templates,
+                           clients=db.fetch(sql.CLIENTS_LOOKUP)[1],
+                           florists=db.fetch(sql.FLORISTS_LOOKUP)[1],
+                           couriers=db.fetch(sql.COURIERS_LOOKUP)[1],
+                           plants=db.fetch(sql.PLANTS_LOOKUP)[1],
+                           payments=orders.PAYMENT_METHODS, complexities=orders.COMPLEXITIES)
+
+
+@app.route("/orders/<int:order_id>")
+def order_view(order_id):
+    rows = db.fetch(sql.ORDER_GET, (order_id,))[1]
+    if not rows:
+        abort(404)
+    bouquet_columns, bouquets = db.fetch(sql.ORDER_BOUQUETS, (order_id,))
+    item_columns, items = db.fetch(sql.ORDER_BOUQUET_ITEMS, (order_id,))
+    plant_columns, plants = db.fetch(sql.ORDER_PLANTS, (order_id,))
+    return render_template("order_view.html", order=rows[0], buttons=ORDER_BUTTONS, actions=ORDER_ACTIONS,
+                           bouquet_columns=bouquet_columns, bouquets=bouquets,
+                           item_columns=item_columns, items=items,
+                           plant_columns=plant_columns, plants=plants)
 
 
 @app.post("/orders/<int:order_id>/<action>")
