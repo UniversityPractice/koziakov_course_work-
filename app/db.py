@@ -5,6 +5,7 @@
 одной транзакцией). error_text превращает ошибку PostgreSQL в понятный текст.
 """
 import configparser
+import os
 import re
 from contextlib import contextmanager
 from pathlib import Path
@@ -17,10 +18,17 @@ conn = None  # соединение, открывается в connect()
 
 
 def read_config(path=CONFIG_PATH):
-    """Параметры подключения из секции [database] файла config.ini."""
+    """Параметры подключения из секции [database] файла config.ini.
+
+    Любой параметр можно переопределить переменной окружения DB_<ИМЯ>
+    (DB_HOST, DB_PORT, ...) — так приложение в Docker подключается к сервису db.
+    """
     parser = configparser.ConfigParser()
     parser.read(path, encoding="utf-8")
-    return dict(parser["database"])
+    params = dict(parser["database"])
+    for key in params:
+        params[key] = os.environ.get(f"DB_{key.upper()}", params[key])
+    return params
 
 
 def connect(params=None):

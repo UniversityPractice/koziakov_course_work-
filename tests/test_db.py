@@ -65,3 +65,11 @@ def test_error_text_without_pgcode():
 
 def test_config_has_connection_keys():
     assert set(db.read_config()) == {"host", "port", "dbname", "user", "password"}
+
+
+def test_config_env_overrides(monkeypatch):
+    monkeypatch.setenv("DB_HOST", "db")
+    monkeypatch.setenv("DB_PORT", "5432")
+    params = db.read_config()
+    assert params["host"] == "db" and params["port"] == "5432"
+    assert params["dbname"] == "florist"

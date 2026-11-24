@@ -72,9 +72,31 @@ app/
   sql.py           все SQL-тексты приложения
   ui/              экраны: справочники, книга рецептов, заказы, заявки, отчёты
   requirements.txt зависимости
+  Dockerfile       образ приложения для docker compose
+docker-compose.yml база и приложение
 ```
 
-## Установка и запуск
+## Запуск через Docker Compose
+
+Нужен только Docker. На Windows 10/11 с Docker Desktop (WSL2) окно приложения выводится
+через WSLg, ничего дополнительно ставить не надо.
+
+```
+docker compose up -d --build
+```
+
+Поднимается PostgreSQL 16 (при первом запуске сама создаётся схема и загружаются тестовые
+и дополнительные данные), затем открывается окно приложения. Приложение ждёт, пока база
+станет доступна, и подключается к ней по внутренней сети compose (параметры из `app/config.ini`
+переопределяются переменными `DB_HOST=db`, `DB_PORT=5432`).
+
+- Закрыли окно — контейнер приложения завершается. Открыть снова: `docker compose run --rm app`.
+- Только база (приложение на хосте): `docker compose up -d db`, затем `python app/main.py`.
+- Остановить: `docker compose down`; с удалением данных: `docker compose down -v`.
+- На Linux вместо WSLg используется X-сервер хоста:
+  `xhost +local:docker`, затем `X11_UNIX=/tmp/.X11-unix docker compose up -d --build`.
+
+## Установка и запуск без Docker Compose
 
 1. Поднять PostgreSQL 16 (например, в Docker) и создать базу:
 
