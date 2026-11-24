@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}{{ recipe[1] }}{% endblock %}
+{% block content %}
+<div class="head">
+  <h1>{{ recipe[1] }}</h1>
+  <a href="{{ url_for('recipes_list', florist=recipe[2]) }}">← Шаблоны флориста</a>
+</div>
+<p class="hint">Флорист: {{ recipe[3] }} · рекомендуемая цена букета по шаблону:
+  <b>{{ recipe[4] | fmt }} ₽</b> · продано букетов: {{ recipe[5] }}</p>
+
+<h2 class="section">Состав</h2>
+<table>
+  <thead><tr>{% for c in columns[1:] %}<th>{{ c }}</th>{% endfor %}<th></th></tr></thead>
+  <tbody>
+  {% for row in rows %}
+    <tr>
+      <td>{{ row[1] }}</td>
+      <td>{{ row[2] }}</td>
+      <td>
+        <form method="post" action="{{ url_for('recipe_item_update', template_id=recipe[0], plant_id=row[0]) }}"
+              class="qty-form">
+          <input type="number" name="qty" min="1" step="1" value="{{ row[3] }}">
+          <button class="link">Сохранить</button>
+        </form>
+      </td>
+      {% for v in row[4:] %}<td>{{ v | fmt }}</td>{% endfor %}
+      <td class="actions">
+        <form method="post" action="{{ url_for('recipe_item_delete', template_id=recipe[0], plant_id=row[0]) }}">
+          <button class="link danger">Удалить</button>
+        </form>
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="{{ columns | length }}" class="empty">В шаблоне пока нет растений</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<form method="post" action="{{ url_for('recipe_item_add', template_id=recipe[0]) }}" class="card wide inline-form">
+  <label class="grow"><span>Растение (остаток)</span>
+    <select name="plant" required>
+      <option value="">— выберите —</option>
+      {% for pid, label in plants %}<option value="{{ pid }}">{{ label }}</option>{% endfor %}
+    </select>
+  </label>
+  <label><span>Количество</span><input type="number" name="qty" min="1" step="1" value="1" required></label>
+  <button class="button">+ Добавить в состав</button>
+</form>
+
+<h2 class="section">Шаблон</h2>
+<form method="post" action="{{ url_for('recipe_rename', template_id=recipe[0]) }}" class="card wide inline-form">
+  <label class="grow"><span>Название</span><input type="text" name="name" value="{{ recipe[1] }}" required></label>
+  <button class="button secondary">Переименовать</button>
+</form>
+<form method="post" action="{{ url_for('recipe_delete', template_id=recipe[0]) }}"
+      onsubmit="return confirm({{ delete_question | tojson | forceescape }})">
+  <button class="link danger">Удалить шаблон</button>
+</form>
+{% endblock %}

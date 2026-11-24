@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Книга рецептов{% endblock %}
+{% block content %}
+<h1>Книга рецептов</h1>
+<p class="hint">У каждого флориста свои шаблоны букетов. При оформлении заказа состав шаблона
+  подставляется в букет, и его можно изменить.</p>
+
+<form method="get" class="period">
+  <label>Флорист
+    <select name="florist" onchange="this.form.submit()">
+      {% for fid, name in florists %}
+        <option value="{{ fid }}" {% if fid == florist %}selected{% endif %}>{{ name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <noscript><button class="button secondary">Показать</button></noscript>
+</form>
+
+<table>
+  <thead><tr>{% for c in columns[1:] %}<th>{{ c }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for row in rows %}
+    <tr>
+      <td><a href="{{ url_for('recipe_view', template_id=row[0]) }}">{{ row[1] }}</a></td>
+      {% for v in row[2:] %}<td>{{ v | fmt }}</td>{% endfor %}
+    </tr>
+  {% else %}
+    <tr><td colspan="{{ (columns | length - 1) or 1 }}" class="empty">У флориста пока нет шаблонов</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+{% if florist %}
+<form method="post" action="{{ url_for('recipe_new') }}" class="card wide inline-form">
+  <input type="hidden" name="florist" value="{{ florist }}">
+  <label><span>Новый шаблон</span><input type="text" name="name" placeholder="Название, например «Весенний»" required></label>
+  <button class="button">+ Добавить шаблон</button>
+</form>
+{% endif %}
+{% endblock %}

@@ -12,7 +12,9 @@
   <nav>
     <h3>Продажи</h3>
     <a href="{{ url_for('orders_list') }}"
-       {% if request.endpoint == 'orders_list' %}class="active"{% endif %}>Заказы</a>
+       {% if request.endpoint in ('orders_list', 'order_new', 'order_view') %}class="active"{% endif %}>Заказы</a>
+    <a href="{{ url_for('recipes_list') }}"
+       {% if request.endpoint in ('recipes_list', 'recipe_view') %}class="active"{% endif %}>Книга рецептов</a>
     <h3>Справочники</h3>
     {% for d in directories %}
       <a href="{{ url_for('directory_list', slug=d.slug) }}"

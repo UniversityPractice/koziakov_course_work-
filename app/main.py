@@ -17,6 +17,7 @@ from directories import DIRECTORIES, ORDER_STATUSES, REQUEST_STATUSES, directory
 
 app = Flask(__name__)
 app.secret_key = "florist-local"  # нужен только для flash-сообщений на локальном сайте
+app.json.ensure_ascii = False      # tojson в шаблонах оставляет кириллицу читаемой
 
 # Отчёты: номер → (название, SQL, параметры: None / "period" / "period_required")
 REPORTS = {
@@ -236,6 +237,113 @@ def orders_action(order_id, action):
     except psycopg2.Error as e:
         flash(db.error_text(e), "error")
     return redirect(url_for("orders_list", status=request.args.get("status", "активные")))
+
+
+# --- Книга рецептов -----------------------------------------------------
+
+def get_recipe(template_id):
+    rows = db.fetch(sql.TEMPLATE_GET, (template_id,))[1]
+    if not rows:
+        abort(404)
+    return rows[0]
+
+
+def back_to_recipe(template_id):
+    return redirect(url_for("recipe_view", template_id=template_id))
+
+
+@app.route("/recipes")
+def recipes_list():
+    florists = db.fetch(sql.FLORISTS_LOOKUP)[1]
+    florist = orders.to_int(request.args.get("florist"))
+    if florist not in {fid for fid, _ in florists}:
+        florist = florists[0][0] if florists else None
+    columns, rows = db.fetch(sql.TEMPLATE_LIST, (florist,)) if florist else ([], [])
+    return render_template("recipes.html", florists=florists, florist=florist, columns=columns, rows=rows)
+
+
+@app.post("/recipes/new")
+def recipe_new():
+    florist = orders.to_int(request.form.get("florist"))
+    name = request.form.get("name", "").strip()
+    if not name:
+        flash("Введите название шаблона.", "error")
+        return redirect(url_for("recipes_list", florist=florist))
+    try:
+        template_id = db.execute(sql.TEMPLATE_INSERT, (florist, name))
+    except psycopg2.Error as e:
+        flash(db.error_text(e), "error")
+        return redirect(url_for("recipes_list", florist=florist))
+    flash("Шаблон создан. Добавьте в него растения.", "ok")
+    return back_to_recipe(template_id)
+
+
+@app.route("/recipes/<int:template_id>")
+def recipe_view(template_id):
+    recipe = get_recipe(template_id)
+    columns, rows = db.fetch(sql.TEMPLATE_COMPOSITION, (template_id,))
+    delete_question = f"Удалить шаблон «{recipe[1]}»?"
+    if recipe[5]:
+        delete_question += f" Проданные по нему букеты ({recipe[5]}) останутся и станут индивидуальными."
+    return render_template("recipe.html", recipe=recipe, columns=columns, rows=rows,
+                           plants=db.fetch(sql.PLANTS_LOOKUP)[1], delete_question=delete_question)
+
+
+@app.post("/recipes/<int:template_id>/rename")
+def recipe_rename(template_id):
+    get_recipe(template_id)
+    name = request.form.get("name", "").strip()
+    if not name:
+        flash("Введите название шаблона.", "error")
+    else:
+        db.execute(sql.TEMPLATE_RENAME, (name, template_id))
+        flash("Шаблон переименован.", "ok")
+    return back_to_recipe(template_id)
+
+
+@app.post("/recipes/<int:template_id>/delete")
+def recipe_delete(template_id):
+    florist = get_recipe(template_id)[2]
+    db.execute(sql.TEMPLATE_DELETE, (template_id,))
+    flash("Шаблон удалён. Проданные по нему букеты остались и стали индивидуальными.", "ok")
+    return redirect(url_for("recipes_list", florist=florist))
+
+
+@app.post("/recipes/<int:template_id>/items")
+def recipe_item_add(template_id):
+    get_recipe(template_id)
+    plant, qty = orders.to_int(request.form.get("plant")), orders.to_int(request.form.get("qty"))
+    if not plant or not qty:
+        flash("Выберите растение и укажите количество больше нуля.", "error")
+        return back_to_recipe(template_id)
+    try:
+        db.execute(sql.TEMPLATE_ITEM_INSERT, (template_id, plant, qty))
+        flash("Растение добавлено.", "ok")
+    except psycopg2.Error as e:
+        # повтор растения — нарушение первичного ключа (шаблон, растение)
+        flash("Это растение уже есть в шаблоне — измените его количество в таблице."
+              if e.pgcode == "23505" else db.error_text(e), "error")
+    return back_to_recipe(template_id)
+
+
+@app.post("/recipes/<int:template_id>/items/<int:plant_id>")
+def recipe_item_update(template_id, plant_id):
+    get_recipe(template_id)
+    qty = orders.to_int(request.form.get("qty"))
+    if not qty:
+        flash("Количество должно быть больше нуля. Чтобы убрать растение, нажмите «Удалить».", "error")
+    else:
+        db.execute(sql.TEMPLATE_ITEM_UPDATE, (qty, template_id, plant_id))
+        flash("Количество изменено.", "ok")
+    return back_to_recipe(template_id)
+
+
+@app.post("/recipes/<int:template_id>/items/<int:plant_id>/delete")
+def recipe_item_delete(template_id, plant_id):
+    get_recipe(template_id)
+    db.execute(sql.TEMPLATE_ITEM_DELETE, (template_id, plant_id))
+    flash("Растение убрано из шаблона.", "ok")
+    return back_to_recipe(template_id)
 
 
 # --- Заявки на закупку -------------------------------------------------

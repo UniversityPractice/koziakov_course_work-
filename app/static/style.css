@@ -67,6 +67,14 @@ table.items .qty { width: 120px; }
                max-width: 1000px; padding: 12px 16px; background: var(--panel); border: 1px solid var(--line);
                border-radius: 8px; box-shadow: 0 -2px 8px rgba(0, 0, 0, .05); }
 .order-total span { margin-right: auto; font-size: 17px; }
+.inline-form { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+.inline-form label { margin-bottom: 0; }
+.inline-form .grow { flex: 1; min-width: 220px; }
+.inline-form .button { white-space: nowrap; }
+.qty-form { display: flex; align-items: center; gap: 8px; }
+.qty-form input { width: 80px; }
+h2.section { font-size: 17px; margin: 24px 0 10px; }
+.period select { width: auto; }
 .default-submit { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
 dl.details { display: grid; grid-template-columns: 160px 1fr; gap: 6px 16px; margin: 0 0 16px; }
 dl.details dt { color: var(--muted); }
