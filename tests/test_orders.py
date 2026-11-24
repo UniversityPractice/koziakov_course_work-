@@ -141,3 +141,46 @@ def test_orders_page_cancel(client):
 
 def test_orders_unknown_action_404(client):
     assert client.post("/orders/1/explode").status_code == 404
+
+
+# --- Состав в списке и фильтр по курьеру ------------------------------------
+
+def list_rows(filter_="все", courier=None):
+    columns, rows = db.fetch(sql.ORDER_LIST, {"фильтр": filter_, "курьер": courier})
+    return [dict(zip(columns, r)) | {"id": r[0]} for r in rows]
+
+
+def test_list_shows_composition():
+    order_id = new_order(qty=2)
+    row = next(r for r in list_rows() if r["id"] == order_id)
+    assert row["Состав"] == "Эвкалипт × 2"
+    # заказ с букетом по шаблону и индивидуальным букетом
+    composed = [r["Состав"] for r in list_rows()]
+    assert any("букет «" in c for c in composed) and any("индивидуальный букет" in c for c in composed)
+    assert all(c for c in composed)          # у каждого заказа есть состав
+
+
+def test_courier_filter():
+    courier = db.fetch_value("select min(id) from сотрудники where должность = 'курьер'")
+    mine = list_rows(courier=courier)
+    assert mine and all(r["Курьер"] == db.fetch_value("select фио from сотрудники where id = %s", (courier,))
+                        for r in mine)
+    pickup = list_rows(courier=0)
+    assert pickup and all(r["Адрес"] == "самовывоз" for r in pickup)
+    assert len(mine) + len(pickup) <= len(list_rows())
+
+
+def test_orders_page_courier_filter(client):
+    courier = db.fetch_value("select min(id) from сотрудники where должность = 'курьер'")
+    page = text(client.get("/orders", query_string={"status": "все", "courier": courier}))
+    assert "Заказов у курьера в выбранном статусе" in page and "№ заказа" in page and "Состав" in page
+    assert f'status=%D0%B2%D1%81%D0%B5&amp;courier={courier}' in page or f"courier={courier}" in page
+    assert client.get("/orders", query_string={"courier": "abc"}).status_code == 200
+
+
+def test_action_keeps_filters_or_returns_to_view(client):
+    order_id = new_order()
+    response = client.post(f"/orders/{order_id}/delivery", query_string={"status": "все", "courier": "7"})
+    assert "courier=7" in response.headers["Location"] and "/orders?" in response.headers["Location"]
+    response = client.post(f"/orders/{order_id}/delivered", query_string={"back": "view"})
+    assert response.headers["Location"].endswith(f"/orders/{order_id}")

@@ -170,8 +170,12 @@ def orders_list():
     current = request.args.get("status", "активные")
     if current not in ORDER_FILTERS:
         current = "активные"
-    columns, rows = db.fetch(sql.ORDER_LIST, {"фильтр": current})
-    return render_template("orders.html", columns=columns, rows=rows, current=current,
+    # курьер: "" — все, "0" — самовывоз, иначе id курьера
+    courier = request.args.get("courier", "")
+    courier = courier if courier.isdigit() else ""
+    columns, rows = db.fetch(sql.ORDER_LIST, {"фильтр": current, "курьер": int(courier) if courier else None})
+    return render_template("orders.html", columns=columns, rows=rows, current=current, courier=courier,
+                           couriers=db.fetch(sql.COURIERS_LOOKUP)[1],
                            filters=ORDER_FILTERS, actions=ORDER_ACTIONS, buttons=ORDER_BUTTONS)
 
 
@@ -236,7 +240,11 @@ def orders_action(order_id, action):
             abort(404)
     except psycopg2.Error as e:
         flash(db.error_text(e), "error")
-    return redirect(url_for("orders_list", status=request.args.get("status", "активные")))
+    if request.args.get("back") == "view" and action != "cancel":
+        return redirect(url_for("order_view", order_id=order_id))
+    # возвращаемся в список с теми же фильтрами
+    return redirect(url_for("orders_list", status=request.args.get("status", "активные"),
+                            courier=request.args.get("courier", "")))
 
 
 # --- Книга рецептов -----------------------------------------------------

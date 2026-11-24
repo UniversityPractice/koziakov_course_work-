@@ -33,7 +33,7 @@
           <button class="link danger">Отменить заказ</button>
         </form>
       {% elif a != "delivery" or order[5] %}
-        <form method="post" action="{{ url_for('orders_action', order_id=order[0], action=a) }}">
+        <form method="post" action="{{ url_for('orders_action', order_id=order[0], action=a, back='view') }}">
           <button class="button secondary">{{ actions[a][1] }}</button>
         </form>
       {% endif %}

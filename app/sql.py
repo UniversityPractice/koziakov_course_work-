@@ -120,9 +120,18 @@ CLIENTS_LOOKUP = """
 # =====================================================================
 ORDER_LIST = """
     SELECT з.id, з.курьер_id IS NOT NULL AS "с доставкой",
-           з.id AS "№", з.дата AS "Оформлен", кл.имя AS "Клиент", ф.фио AS "Флорист",
+           з.id AS "№ заказа", з.дата AS "Оформлен", кл.имя AS "Клиент", ф.фио AS "Флорист",
            COALESCE(з.адрес_доставки, 'самовывоз') AS "Адрес", з.время_доставки AS "К времени",
            кур.фио AS "Курьер",
+           -- что собрать и отдать курьеру: букеты по шаблонам и отдельные растения
+           concat_ws('; ',
+               (SELECT string_agg(CASE WHEN ш.название IS NULL THEN 'индивидуальный букет'
+                                       ELSE 'букет «' || ш.название || '»' END, '; ' ORDER BY б.id)
+                  FROM букеты б LEFT JOIN шаблоны ш ON ш.id = б.шаблон_id
+                 WHERE б.заказ_id = з.id),
+               (SELECT string_agg(р.название || ' × ' || рз.количество, '; ' ORDER BY р.название)
+                  FROM растения_в_заказе рз JOIN растения р ON р.id = рз.растение_id
+                 WHERE рз.заказ_id = з.id)) AS "Состав",
            COALESCE((SELECT SUM(цена_продажи) FROM букеты WHERE заказ_id = з.id), 0)
          + COALESCE((SELECT SUM(количество * цена) FROM растения_в_заказе WHERE заказ_id = з.id), 0)
              AS "Сумма",
@@ -134,6 +143,10 @@ ORDER_LIST = """
     WHERE CASE %(фильтр)s WHEN 'все'      THEN TRUE
                           WHEN 'активные' THEN з.статус <> 'вручён'
                           ELSE з.статус = %(фильтр)s END
+      -- курьер: NULL — все заказы, 0 — только самовывоз, иначе id курьера
+      AND (%(курьер)s::int IS NULL
+           OR з.курьер_id = %(курьер)s
+           OR (%(курьер)s = 0 AND з.курьер_id IS NULL))
     ORDER BY з.дата DESC, з.id DESC"""
 ORDER_SET_STATUS = "UPDATE заказы SET статус = %s WHERE id = %s"
 ORDER_DELETE = "DELETE FROM заказы WHERE id = %s"

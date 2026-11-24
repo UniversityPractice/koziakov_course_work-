@@ -8,12 +8,33 @@
 <p class="hint">
   Растения списываются со склада при оформлении заказа. Когда заказчик принял цветы, отметьте «Вручён».
   Отменить можно только заказ в статусе «принят» — растения вернутся на склад.
+  Полный состав букетов — на странице заказа (нажмите на номер).
 </p>
-<div class="tabs">
-  {% for f in filters %}
-    <a href="{{ url_for('orders_list', status=f) }}" {% if f == current %}class="active"{% endif %}>{{ f }}</a>
-  {% endfor %}
+<div class="filters">
+  <div class="tabs">
+    {% for f in filters %}
+      <a href="{{ url_for('orders_list', status=f, courier=courier) }}"
+         {% if f == current %}class="active"{% endif %}>{{ f }}</a>
+    {% endfor %}
+  </div>
+  <form method="get" class="courier-filter">
+    <input type="hidden" name="status" value="{{ current }}">
+    <label>Курьер
+      <select name="courier" onchange="this.form.submit()">
+        <option value="">все заказы</option>
+        <option value="0" {% if courier == "0" %}selected{% endif %}>— самовывоз —</option>
+        {% for cid, name in couriers %}
+          <option value="{{ cid }}" {% if cid | string == courier %}selected{% endif %}>{{ name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <noscript><button class="button secondary">Показать</button></noscript>
+  </form>
 </div>
+{% if courier and courier != "0" %}
+  <p class="hint">Заказов у курьера в выбранном статусе: <b>{{ rows | length }}</b>.
+    {% if current != "в доставке" %}Выберите статус «в доставке», чтобы увидеть, что он везёт сейчас.{% endif %}</p>
+{% endif %}
 <table>
   <thead><tr>{% for c in columns[2:] %}<th>{{ c }}</th>{% endfor %}<th></th></tr></thead>
   <tbody>
@@ -23,6 +44,8 @@
       {% for v in row[2:] %}
         {% if loop.first %}
           <td><a href="{{ url_for('order_view', order_id=row[0]) }}">{{ v }}</a></td>
+        {% elif columns[loop.index0 + 2] == "Состав" %}
+          <td class="composition">{{ v }}</td>
         {% elif loop.revindex == 2 %}
           <td><span class="status {{ {'вручён': 'done', 'не вручён': 'bad'}.get(status, 'active') }}">{{ v }}</span></td>
         {% else %}
@@ -32,12 +55,12 @@
       <td class="actions">
         {% for a in buttons[status] %}
           {% if a == "cancel" %}
-            <form method="post" action="{{ url_for('orders_action', order_id=row[0], action=a, status=current) }}"
+            <form method="post" action="{{ url_for('orders_action', order_id=row[0], action=a, status=current, courier=courier) }}"
                   onsubmit="return confirm(&quot;Отменить заказ? Растения вернутся на склад.&quot;)">
               <button class="link danger">Отменить</button>
             </form>
           {% elif a != "delivery" or row[1] %}
-            <form method="post" action="{{ url_for('orders_action', order_id=row[0], action=a, status=current) }}">
+            <form method="post" action="{{ url_for('orders_action', order_id=row[0], action=a, status=current, courier=courier) }}">
               <button class="link">{{ actions[a][1] }}</button>
             </form>
           {% endif %}
