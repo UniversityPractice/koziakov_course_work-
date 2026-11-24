@@ -14,7 +14,8 @@ import psycopg2
 
 CONFIG_PATH = Path(__file__).with_name("config.ini")
 
-conn = None  # соединение, открывается в connect()
+conn = None    # соединение, открывается в connect()
+_params = None  # с какими параметрами открыто — reconnect() подключается туда же
 
 
 def read_config(path=CONFIG_PATH):
@@ -33,8 +34,21 @@ def read_config(path=CONFIG_PATH):
 
 def connect(params=None):
     """Открывает соединение. Без параметров берёт их из config.ini."""
-    global conn
-    conn = psycopg2.connect(**(params or read_config()), client_encoding="UTF8")
+    global conn, _params
+    _params = params or read_config()
+    conn = psycopg2.connect(**_params, client_encoding="UTF8")
+
+
+def ensure_connection():
+    """Проверяет соединение; если оно оборвалось (база перезапускалась) — открывает заново
+    с теми же параметрами. Если соединения ещё не было — открывает по config.ini."""
+    if conn is not None and not conn.closed:
+        try:
+            fetch_value("SELECT 1")
+            return
+        except psycopg2.Error:
+            conn.close()
+    connect(_params)
 
 
 def fetch(sql_text, params=None):

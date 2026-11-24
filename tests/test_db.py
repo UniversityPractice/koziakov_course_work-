@@ -72,4 +72,4 @@ def test_config_env_overrides(monkeypatch):
     monkeypatch.setenv("DB_PORT", "5432")
     params = db.read_config()
     assert params["host"] == "db" and params["port"] == "5432"
-    assert params["dbname"] == "florist"
+    assert params["dbname"] == "florist_test"   # conftest защищает рабочую базу через DB_DBNAME

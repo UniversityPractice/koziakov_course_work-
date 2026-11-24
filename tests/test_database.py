@@ -79,7 +79,7 @@ TABLES = ["категории", "поставщики", "растения", "с�
 
 @pytest.fixture(scope="module")
 def full_cur():
-    """Отдельная база: схема + тестовые + дополнительные данные."""
+    """Отдельная база: схема + тестовые + дополнительные данные + текущие заказы (как в docker compose)."""
     params = {**TEST_PARAMS, "dbname": "florist_full_test"}
     admin = psycopg2.connect(**{**TEST_PARAMS, "dbname": "postgres"})
     admin.autocommit = True
@@ -89,7 +89,8 @@ def full_cur():
     conn = psycopg2.connect(**params)
     conn.autocommit = True
     with conn.cursor() as c:
-        for name in ("флористический_центр.sql", "тестовые_данные.sql", "дополнительные_данные.sql"):
+        for name in ("флористический_центр.sql", "тестовые_данные.sql", "дополнительные_данные.sql",
+                     "текущие_заказы.sql"):
             c.execute(read_script(name))
         yield c
     conn.close()
@@ -124,3 +125,43 @@ def test_more_data_consistent(full_cur):
 @pytest.mark.parametrize("n", range(1, 8))
 def test_more_data_reports(full_cur, n):
     assert run_block(full_cur, n)
+
+
+def test_current_orders_in_work(full_cur):
+    # в работе есть заказы во всех активных статусах, у доставок — курьер и адрес
+    full_cur.execute("""select статус, count(*) from заказы where статус <> 'вручён' group by статус""")
+    counts = dict(full_cur.fetchall())
+    assert counts["принят"] >= 6 and counts["в доставке"] >= 5 and counts["не вручён"] >= 3
+    full_cur.execute("""select count(*) from заказы where статус in ('в доставке', 'не вручён')
+                        and (курьер_id is null or адрес_доставки is null or время_доставки is null)""")
+    assert full_cur.fetchone()[0] == 0
+    # «в доставке» — к ближайшим часам, «не вручён» — время уже прошло
+    full_cur.execute("""select count(*) filter (where статус = 'в доставке' and время_доставки > now()),
+                               count(*) filter (where статус = 'не вручён' and время_доставки < now())
+                        from заказы""")
+    upcoming, missed = full_cur.fetchone()
+    assert upcoming >= 5 and missed >= 3
+
+
+def test_current_orders_with_base_data_only():
+    """Скрипт текущих заказов работает и без дополнительных данных."""
+    params = {**TEST_PARAMS, "dbname": "florist_current_test"}
+    admin = psycopg2.connect(**{**TEST_PARAMS, "dbname": "postgres"})
+    admin.autocommit = True
+    with admin.cursor() as c:
+        c.execute("DROP DATABASE IF EXISTS florist_current_test WITH (FORCE)")
+        c.execute("CREATE DATABASE florist_current_test ENCODING 'UTF8' TEMPLATE template0")
+    conn = psycopg2.connect(**params)
+    conn.autocommit = True
+    try:
+        with conn.cursor() as c:
+            for name in ("флористический_центр.sql", "тестовые_данные.sql", "текущие_заказы.sql"):
+                c.execute(read_script(name))
+            c.execute("select count(*) from заказы where дата > now() - interval '2 days' "
+                      "and статус in ('принят', 'в доставке', 'не вручён')")
+            assert c.fetchone()[0] >= 14
+    finally:
+        conn.close()
+        with admin.cursor() as c:
+            c.execute("DROP DATABASE florist_current_test WITH (FORCE)")
+        admin.close()

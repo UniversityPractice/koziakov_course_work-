@@ -50,8 +50,7 @@ def menu():
 @app.before_request
 def ensure_connection():
     """Одно соединение на сайт; если база перезапускалась — подключаемся заново."""
-    if db.conn is None or db.conn.closed:
-        db.connect()
+    db.ensure_connection()
 
 
 @app.errorhandler(psycopg2.OperationalError)

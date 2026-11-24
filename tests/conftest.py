@@ -4,6 +4,7 @@
 чтобы тесты не трогали рабочую базу florist.
 """
 import configparser
+import os
 import re
 import sys
 from pathlib import Path
@@ -20,6 +21,18 @@ _config = configparser.ConfigParser()
 _config.read(APP / "config.ini", encoding="utf-8")
 TEST_PARAMS = dict(_config["database"])
 TEST_PARAMS["dbname"] = "florist_test"
+
+# Защита рабочей базы: даже если код приложения прочитает config.ini сам
+# (db.read_config), в тестах он получит тестовую базу.
+os.environ["DB_DBNAME"] = "florist_test"
+
+
+@pytest.fixture(scope="session", autouse=True)
+def never_touch_work_db():
+    """После всех тестов соединение приложения должно смотреть в тестовую базу."""
+    yield
+    import db
+    assert db._params is None or db._params["dbname"] == "florist_test", db._params
 
 
 def read_script(name):

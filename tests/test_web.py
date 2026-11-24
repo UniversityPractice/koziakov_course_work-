@@ -1,7 +1,9 @@
 """Страницы сайта: открываются, формы сохраняют, ошибки БД показываются понятно."""
+import psycopg2
 import pytest
 
 import db
+from conftest import TEST_PARAMS
 import sql
 from directories import DIRECTORIES
 
@@ -25,6 +27,18 @@ def test_directory_pages_open(client, cfg):
     assert client.get(f"/d/{cfg['slug']}/new").status_code == 200
     first_id = db.fetch(cfg["list"])[1][0][0]
     assert client.get(f"/d/{cfg['slug']}/{first_id}").status_code == 200
+
+
+def test_reconnects_after_db_restart(client):
+    """Соединение оборвалось (база перезапускалась) — сайт подключается заново, без ошибки."""
+    old = db.conn
+    killer = psycopg2.connect(**TEST_PARAMS)
+    killer.autocommit = True
+    with killer.cursor() as c:
+        c.execute("select pg_terminate_backend(%s)", (old.get_backend_pid(),))
+    killer.close()
+    assert client.get("/d/categories").status_code == 200
+    assert db.conn is not old and "dbname=florist_test" in db.conn.dsn
 
 
 def test_unknown_pages_404(client):

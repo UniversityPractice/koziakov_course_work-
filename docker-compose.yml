@@ -25,6 +25,9 @@ services:
       - ./database/флористический_центр.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
       - ./database/тестовые_данные.sql:/docker-entrypoint-initdb.d/02_data.sql:ro
       - ./database/дополнительные_данные.sql:/docker-entrypoint-initdb.d/03_more_data.sql:ro
+      - ./database/текущие_заказы.sql:/docker-entrypoint-initdb.d/04_current_orders.sql:ro
+    # московское время: now() и время доставки совпадают с часами салона
+    command: ["postgres", "-c", "timezone=Europe/Moscow"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d florist"]
       interval: 5s
