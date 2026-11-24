@@ -1,9 +1,10 @@
 """Схема БД и тестовые данные: всё на месте, отчёты не пустые."""
 from decimal import Decimal
 
+import psycopg2
 import pytest
 
-from conftest import query_blocks
+from conftest import TEST_PARAMS, query_blocks, read_script
 
 
 def run_block(cur, n):
@@ -69,3 +70,57 @@ def test_fixture_entities(cur):
     cur.execute("select count(*) from букеты б join шаблоны ш on ш.id = б.шаблон_id "
                 "where ш.название = 'Весенний'")
     assert cur.fetchone()[0] >= 1
+
+
+TABLES = ["категории", "поставщики", "растения", "сотрудники", "шаблоны", "состав_шаблона",
+          "клиенты", "заказы", "растения_в_заказе", "букеты", "состав_букета", "списания",
+          "заявки_на_закупку"]
+
+
+@pytest.fixture(scope="module")
+def full_cur():
+    """Отдельная база: схема + тестовые + дополнительные данные."""
+    params = {**TEST_PARAMS, "dbname": "florist_full_test"}
+    admin = psycopg2.connect(**{**TEST_PARAMS, "dbname": "postgres"})
+    admin.autocommit = True
+    with admin.cursor() as c:
+        c.execute("DROP DATABASE IF EXISTS florist_full_test WITH (FORCE)")
+        c.execute("CREATE DATABASE florist_full_test ENCODING 'UTF8' TEMPLATE template0")
+    conn = psycopg2.connect(**params)
+    conn.autocommit = True
+    with conn.cursor() as c:
+        for name in ("флористический_центр.sql", "тестовые_данные.sql", "дополнительные_данные.sql"):
+            c.execute(read_script(name))
+        yield c
+    conn.close()
+    with admin.cursor() as c:
+        c.execute("DROP DATABASE florist_full_test WITH (FORCE)")
+    admin.close()
+
+
+def test_more_data_volume(full_cur):
+    counts = {}
+    for t in TABLES:
+        full_cur.execute(f"select count(*) from {t}")
+        counts[t] = full_cur.fetchone()[0]
+    assert counts["категории"] >= 20 and counts["поставщики"] >= 25
+    assert all(n >= 100 for t, n in counts.items() if t not in ("категории", "поставщики")), counts
+
+
+def test_more_data_consistent(full_cur):
+    # у каждого заказа есть букет или отдельное растение, у букета — состав и цена
+    full_cur.execute("""select count(*) from заказы з
+                        where not exists (select 1 from букеты where заказ_id = з.id)
+                          and not exists (select 1 from растения_в_заказе where заказ_id = з.id)""")
+    assert full_cur.fetchone()[0] == 0
+    full_cur.execute("""select count(*) from букеты б
+                        where б.цена_продажи <= 0
+                           or not exists (select 1 from состав_букета where букет_id = б.id)""")
+    assert full_cur.fetchone()[0] == 0
+    full_cur.execute("select count(*) from заказы where дата >= now()")
+    assert full_cur.fetchone()[0] == 0
+
+
+@pytest.mark.parametrize("n", range(1, 8))
+def test_more_data_reports(full_cur, n):
+    assert run_block(full_cur, n)

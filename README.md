@@ -89,7 +89,11 @@ app/
    docker cp database flowers-pg:/database
    docker exec flowers-pg psql -U postgres -d florist -f /database/флористический_центр.sql
    docker exec flowers-pg psql -U postgres -d florist -f /database/тестовые_данные.sql
+   docker exec flowers-pg psql -U postgres -d florist -f /database/дополнительные_данные.sql
    ```
+
+   Третий скрипт необязателен: он дописывает реалистичные данные (около сотни записей в таблицах).
+   Проще всего всё это делает `docker compose up -d` — база создаётся и заполняется сама.
 
    (Скрипты копируются в контейнер, а не передаются через `<`: в PowerShell перенаправление `<`
    не работает, а конвейер портит кириллицу.)

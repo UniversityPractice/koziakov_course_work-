@@ -1,0 +1,36 @@
+# PostgreSQL 16 для приложения «Флористический центр».
+# Параметры совпадают с app/config.ini (localhost:5433, florist, postgres/flowers).
+# При первом запуске (пустой том) создаётся схема и загружаются тестовые
+# и дополнительные данные.
+#
+#   docker compose up -d        — поднять базу
+#   docker compose down -v      — остановить и удалить данные (следующий up создаст базу заново)
+#
+# Само приложение (PyQt5) запускается на хосте: python app/main.py
+
+services:
+  db:
+    image: postgres:16
+    container_name: florist-db
+    environment:
+      POSTGRES_DB: florist
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: flowers
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    ports:
+      - "${DB_PORT:-5433}:5432"
+    volumes:
+      - florist-data:/var/lib/postgresql/data
+      # Скрипты init выполняются по алфавиту имён — номера задают порядок.
+      - ./database/флористический_центр.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./database/тестовые_данные.sql:/docker-entrypoint-initdb.d/02_data.sql:ro
+      - ./database/дополнительные_данные.sql:/docker-entrypoint-initdb.d/03_more_data.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d florist"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  florist-data:
