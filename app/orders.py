@@ -112,7 +112,7 @@ def apply_action(draft, action):
 
 
 def recalc(draft):
-    """Рекомендуемые цены букетов и итог заказа (считает база).
+    """Рекомендуемые цены букетов (функция рекоменд_цена по составу) и итог заказа.
 
     Цена продажи букета следует за рекомендуемой, пока её не изменили вручную.
     Шаблон чужого флориста сбрасывается в «индивидуальный», состав остаётся.
@@ -127,7 +127,7 @@ def recalc(draft):
             b["items"] = template_items(b["template"])
         plants = [plant for plant, _ in b["items"]]
         quantities = [qty for _, qty in b["items"]]
-        rec = db.fetch_value(sql.DRAFT_RECOMMENDED_PRICE, (plants, quantities))
+        rec = db.fetch_value(sql.RECOMMENDED_PRICE_BY_ITEMS, (plants, quantities))
         if not b["price"] or to_money(b["price"]) == b["rec"]:
             b["price"] = str(rec)
         b["rec"] = rec

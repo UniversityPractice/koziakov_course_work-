@@ -247,6 +247,52 @@ def orders_action(order_id, action):
                             courier=request.args.get("courier", "")))
 
 
+# --- Расчёт розничной стоимости букета ------------------------------------
+
+@app.route("/price", methods=["GET", "POST"])
+def price():
+    """Рекомендуемая цена по формуле (3.1) для любого состава.
+
+    Состав набирается в форме, берётся из шаблона (?template=) или из букета
+    заказа (?bouquet=). Итог считает функция базы рекоменд_цена по составу;
+    для букета из заказа рядом показывается рекоменд_цена(букет_id).
+    """
+    values = request.values  # параметры адреса (GET) и поля формы (POST)
+    if request.method == "POST":
+        items = orders.read_items(request.form.getlist("p_plant"), request.form.getlist("p_qty"))
+        action = request.form.get("action", "recalc")
+    else:
+        items = []
+        action = "template" if values.get("template") else "bouquet" if values.get("bouquet") else ""
+
+    error, bouquet = None, None
+    template_id = orders.to_int(values.get("template"))
+    if action == "template":
+        if template_id:
+            items = orders.template_items(template_id)
+        else:
+            error = "Выберите шаблон."
+    elif action == "bouquet":
+        bouquet_id = orders.to_int(values.get("bouquet"))
+        rows = db.fetch(sql.BOUQUET_FOR_PRICE, (bouquet_id,))[1] if bouquet_id else []
+        if rows:
+            bouquet = rows[0]
+            items = [tuple(row) for row in db.fetch(sql.BOUQUET_ITEMS, (bouquet_id,))[1]]
+        else:
+            error = f"Букета с номером «{values.get('bouquet', '')}» нет."
+    elif action == "clear":
+        items = []
+
+    plant_ids, quantities = [p for p, _ in items], [q for _, q in items]
+    columns, rows = db.fetch(sql.PRICE_BREAKDOWN, (plant_ids, quantities))
+    total = db.fetch_value(sql.RECOMMENDED_PRICE_BY_ITEMS, (plant_ids, quantities))
+    return render_template("price.html", items=items, columns=columns, rows=rows, total=total,
+                           bouquet=bouquet, error=error, template_id=template_id,
+                           bouquet_number=values.get("bouquet", ""),
+                           plants=db.fetch(sql.PLANTS_LOOKUP)[1],
+                           templates=db.fetch(sql.TEMPLATES_ALL_LOOKUP)[1])
+
+
 # --- Книга рецептов -----------------------------------------------------
 
 def get_recipe(template_id):

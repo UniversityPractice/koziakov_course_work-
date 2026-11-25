@@ -15,6 +15,8 @@
        {% if request.endpoint in ('orders_list', 'order_new', 'order_view') %}class="active"{% endif %}>Заказы</a>
     <a href="{{ url_for('recipes_list') }}"
        {% if request.endpoint in ('recipes_list', 'recipe_view') %}class="active"{% endif %}>Книга рецептов</a>
+    <a href="{{ url_for('price') }}"
+       {% if request.endpoint == 'price' %}class="active"{% endif %}>Расчёт розничной стоимости букета</a>
     <h3>Справочники</h3>
     {% for d in directories %}
       <a href="{{ url_for('directory_list', slug=d.slug) }}"

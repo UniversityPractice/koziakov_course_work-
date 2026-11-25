@@ -45,7 +45,8 @@
   <section class="card wide">
     <h2>Букет {{ loop.index }} · {{ b[2] }}</h2>
     <p class="hint">Сложность: {{ b[3] }} · сборка {{ b[4] }} мин. ·
-      рекомендуемая цена {{ b[5] | fmt }} ₽ · <b>цена продажи {{ b[6] | fmt }} ₽</b></p>
+      рекомендуемая цена {{ b[5] | fmt }} ₽
+      (<a href="{{ url_for('price', bouquet=b[0]) }}">расчёт</a>) · <b>цена продажи {{ b[6] | fmt }} ₽</b></p>
     <table class="items">
       <thead><tr>{% for c in item_columns[1:] %}<th>{{ c }}</th>{% endfor %}</tr></thead>
       <tbody>

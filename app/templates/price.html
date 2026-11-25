@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Расчёт розничной стоимости букета{% endblock %}
+{% block content %}
+<h1>Расчёт розничной стоимости букета</h1>
+
+<section class="card wide formula">
+  <p class="formula-line">Ц<sub>рек</sub> = Σ q<sub>i</sub> · p<sub>i</sub> · k<sub>i</sub></p>
+  <p class="hint">
+    Ц<sub>рек</sub> — рекомендуемая розничная цена букета, руб.;
+    q<sub>i</sub> — количество растения i-й позиции, шт.;
+    p<sub>i</sub> — текущая закупочная цена растения, руб./шт.;
+    k<sub>i</sub> — коэффициент наценки категории растения.
+    Цены берутся из таблицы «растения» — расчёт всегда идёт по текущим ценам.
+    Итог считает функция базы <code>рекоменд_цена</code>.
+  </p>
+</section>
+
+{% if error %}<div class="flash error">{{ error }}</div>{% endif %}
+
+{# novalidate: кнопки работают и с незаполненными полями, проверяет сервер #}
+<form method="post" action="{{ url_for('price') }}" novalidate>
+  <button name="action" value="recalc" class="default-submit" tabindex="-1" aria-hidden="true">Посчитать</button>
+
+  <section class="card wide">
+    <h2>Взять готовый состав</h2>
+    <div class="inline-form">
+      <label class="grow"><span>Шаблон из книги рецептов</span>
+        <select name="template">
+          <option value="">— выберите —</option>
+          {% for tid, label in templates %}
+            <option value="{{ tid }}" {% if tid == template_id %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button name="action" value="template" class="button secondary">Взять состав шаблона</button>
+    </div>
+    <div class="inline-form">
+      <label><span>Номер букета из заказа</span>
+        <input type="number" name="bouquet" min="1" step="1" value="{{ bouquet_number }}"></label>
+      <button name="action" value="bouquet" class="button secondary">Взять состав букета</button>
+    </div>
+  </section>
+
+  <section class="card wide">
+    <h2>Состав букета</h2>
+    <table class="items">
+      <thead><tr><th>Растение (остаток)</th><th class="qty">Кол-во, шт.</th></tr></thead>
+      <tbody>
+        {% for plant, qty in items + [(none, none)] %}
+          <tr>
+            <td>
+              <select name="p_plant">
+                <option value="">— растение —</option>
+                {% for pid, label in plants %}
+                  <option value="{{ pid }}" {% if pid == plant %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </td>
+            <td class="qty"><input type="number" name="p_qty" min="1" step="1" value="{{ qty or '' }}"
+                                   placeholder="шт."></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="hint">Чтобы добавить растение, заполните пустую строку и нажмите «Посчитать».
+      Чтобы убрать — очистите количество.</p>
+    <div class="buttons">
+      <button name="action" value="recalc" class="button">Посчитать</button>
+      <button name="action" value="clear" class="link danger">Очистить состав</button>
+    </div>
+  </section>
+</form>
+
+<section class="card wide">
+  <h2>Расчёт</h2>
+  <table class="items">
+    <thead><tr>{% for c in columns %}<th>{{ c }}</th>{% endfor %}</tr></thead>
+    <tbody>
+      {% for row in rows %}
+        <tr>{% for v in row %}<td>{{ v | fmt }}</td>{% endfor %}</tr>
+      {% else %}
+        <tr><td colspan="{{ columns | length }}" class="empty">Добавьте растения в состав</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="price-total">Ц<sub>рек</sub> = <b>{{ total | fmt }} ₽</b></p>
+  <p class="hint">Итог — функция <code>рекоменд_цена(растения[], количества[])</code>;
+    в строках суммы округлены до копеек.</p>
+
+  {% if bouquet %}
+    <div class="flash ok">
+      Букет №{{ bouquet[0] }} из <a href="{{ url_for('order_view', order_id=bouquet[1]) }}">заказа №{{ bouquet[1] }}</a>
+      ({{ bouquet[2] }}): <code>рекоменд_цена({{ bouquet[0] }})</code> = <b>{{ bouquet[3] | fmt }} ₽</b>,
+      цена продажи — <b>{{ bouquet[4] | fmt }} ₽</b>
+      {%- if bouquet[3] %} ({{ "%+.1f" | format((bouquet[4] / bouquet[3] - 1) * 100) }} % к рекомендуемой){% endif %}.
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

@@ -6,7 +6,8 @@
   <a href="{{ url_for('recipes_list', florist=recipe[2]) }}">← Шаблоны флориста</a>
 </div>
 <p class="hint">Флорист: {{ recipe[3] }} · рекомендуемая цена букета по шаблону:
-  <b>{{ recipe[4] | fmt }} ₽</b> · продано букетов: {{ recipe[5] }}</p>
+  <b>{{ recipe[4] | fmt }} ₽</b> (<a href="{{ url_for('price', template=recipe[0]) }}">расчёт</a>)
+  · продано букетов: {{ recipe[5] }}</p>
 
 <h2 class="section">Состав</h2>
 <table>
